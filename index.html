@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <meta name="theme-color" content="#3399ff">
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Radiation Visualizer</title>
+  <!-- <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> -->
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      padding: 1rem;
+    }
+    .chart {
+      width: 100%;
+      max-width: 100%;
+      height: 300px;
+      margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <h2>Radiation Visualizer</h2>
+  <div style="margin: 1rem 0">
+  <label>CSV-Datei auswählen:
+    <input type="file" id="fileInput" accept=".csv" />
+  </label>
+</div>
+<button id="installBtn" style="display: none; margin: 1rem 0;">
+  📲 App installieren
+</button>
+<div id="reloadContainer" style="margin: 1rem 0;">
+
+</div>
+  <div id="cps-line" class="chart"></div>
+  <div id="usvh-line" class="chart"></div>
+  <script>
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Event blockieren & speichern
+      e.preventDefault();
+      deferredPrompt = e;
+
+      // Button sichtbar machen
+      installBtn.style.display = 'inline-block';
+
+      installBtn.addEventListener('click', async () => {
+        installBtn.style.display = 'none';
+        deferredPrompt.prompt();
+
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('User choice:', outcome);
+
+        deferredPrompt = null;
+      });
+    });
+    // function getFileParam() {
+    //   const urlParams = new URLSearchParams(window.location.search);
+    //   return urlParams.get("file");
+    // }
+
+    // async function loadCSV(url) {
+    //   const response = await fetch(url);
+    //   const text = await response.text();
+
+    //   const rows = text.trim().split("\n").map(row => row.split(","));
+
+    //   // Erste Zeile: Header bereinigen
+    //   const rawHeader = rows.shift();
+    //   const header = rawHeader.map(h =>
+    //     h.replace(/^"|"$/g, "").trim() // entfernt Anführungszeichen und Whitespace
+    //   );
+
+    //   // Verarbeite Datenzeilen
+    //   const data = rows.map(row => {
+    //     const obj = {};
+    //     row.forEach((val, i) => {
+    //       obj[header[i]] = val.replace(/^"|"$/g, "").trim(); // auch Werte bereinigen
+    //     });
+    //     return obj;
+    //   });
+
+    //   return data;
+    // }
+
+    function parseTimeStrings(data) {
+      return data.map((d) => {
+        const [hh, mm, ss] = d.Time?.split(":").map(Number);
+        const date = new Date();
+        date.setHours(hh, mm, ss, 0);
+        return date.toISOString();
+      });
+    }
+    function downsample(data, step = 10) {
+      return data.filter((_, index) => index % step === 0);
+    }
+    function plotLineChart(data, field, title, elementId) {
+      const times = parseTimeStrings(data);
+      const values = data.map((d) => parseFloat(d[field]));
+
+      const trace = {
+        x: times,
+        y: values,
+        // mode: "lines+markers",
+        mode: 'lines',
+        type: "scatter",
+        line: { color: "#3399ff" },
+        marker: { size: 4 },
+        name: field,
+      };
+
+      const layout = {
+        title,
+        margin: { t: 30 },
+        xaxis: {
+          title: "Uhrzeit",
+          type: "date",
+          tickformat: "%H:%M:%S",
+          rangeslider: { visible: true },
+        },
+        yaxis: { title: field },
+      };
+
+      Plotly.newPlot(elementId, [trace], layout, { responsive: true });
+    }
+    function parseCSVText(text) {
+      const rows = text.trim().split("\n").map(row => row.split(","));
+      const rawHeader = rows.shift();
+      const header = rawHeader.map(h => h.replace(/^"|"$/g, "").trim());
+
+      return rows.map(row => {
+        const obj = {};
+        row.forEach((val, i) => {
+          obj[header[i]] = val.replace(/^"|"$/g, "").trim();
+        });
+        return obj;
+      }).filter(d => d["Time"]);
+    }
+
+    async function main() {
+      // const file = getFileParam();
+      // if (!file) {
+      //   alert("Kein CSV-Dateiname angegeben. Beispiel: ?file=data.csv");
+      //   return;
+      // }
+
+      // try {
+      //   const data = await loadCSV(file);
+      //   plotLineChart(data, "CPS", "Count Rate (CPS)", "cps-line");
+      //   plotLineChart(data, "uSv/h", "Dosisrate (µSv/h)", "usvh-line");
+      // } catch (err) {
+      //   console.error(err);
+      //   alert("Fehler beim Laden oder Verarbeiten der CSV-Datei.");
+      // }
+      document.getElementById("fileInput").addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const parsedData = parseCSVText(text);
+        const sampledData = parsedData; //downsample(parsedData, 2000);
+
+        plotLineChart(sampledData, "CPS", "Count Rate (CPS)", "cps-line");
+        plotLineChart(sampledData, "uSv/h", "Dosisrate (µSv/h)", "usvh-line");
+
+        showReloadButton(parsedData); // gleiche Button-Logik wie bei fetch()
+      } catch (err) {
+        console.error(err);
+        alert("Fehler beim Verarbeiten der hochgeladenen Datei.");
+      }
+    });
+    }
+    function showReloadButton(data) {
+      const container = document.getElementById("reloadContainer");
+      container.innerHTML = ""; // Reset
+
+      const reloadBtn = document.createElement("button");
+      reloadBtn.textContent = "🔄 Neue Datei laden";
+      reloadBtn.style.marginTop = "10px";
+      reloadBtn.onclick = () => {
+        document.getElementById("fileInput").click();
+      };
+
+      const stats = document.createElement("div");
+      stats.style.fontSize = "0.9rem";
+      stats.style.marginTop = "6px";
+      stats.textContent = `Datensätze geladen: ${data.length}`;
+
+      container.appendChild(reloadBtn);
+      container.appendChild(stats);
+    }
+    main();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('✅ Service Worker registriert'))
+        .catch(err => console.error('❌ SW Fehler:', err));
+    }
+  </script>
+</body>
+</html>
