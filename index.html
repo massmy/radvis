@@ -59,6 +59,7 @@
     .plot-container {
       width: 100%;
       overflow-x: auto;
+      touch-action: auto !important;
     }
 
     @media (max-width: 600px) {
@@ -85,7 +86,19 @@
     #controls{
       margin: 1rem 0;
     }
-
+    #rangeButtons button {
+      margin-right: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border: none;
+      border-radius: 5px;
+      background: #007bff;
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    #rangeButtons button:hover {
+      background: #0056b3;
+    }
   </style>
 </head>
 
@@ -104,6 +117,13 @@
       <button id="toggleDownsample">🔁 Downsampling: On</button>
       <button id="toggleSmoothing">🔁 Smoothing: On</button>
   </div>
+  <div id="rangeButtons" style="margin-bottom: 1rem;">
+    <button onclick="setRange('10m')">10 min</button>
+    <button onclick="setRange('30m')">30 min</button>
+    <button onclick="setRange('2h')">2 h</button>
+    <button onclick="setRange('1d')">1 d</button>
+    <button onclick="setRange('all')">All</button>
+  </div>
   <!-- <div id="cps-line" class="chart"></div>
   <div id="usvh-line" class="chart"></div> -->
   <div class="plot-container">
@@ -116,6 +136,7 @@
     <div id="altitude-line"></div>
   </div>
   <script>
+    let currentData;
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
 
@@ -134,34 +155,6 @@
         deferredPrompt = null;
       });
     });
-    // function getFileParam() {
-    //   const urlParams = new URLSearchParams(window.location.search);
-    //   return urlParams.get("file");
-    // }
-
-    // async function loadCSV(url) {
-    //   const response = await fetch(url);
-    //   const text = await response.text();
-
-    //   const rows = text.trim().split("\n").map(row => row.split(","));
-
-    //   // Erste Zeile: Header bereinigen
-    //   const rawHeader = rows.shift();
-    //   const header = rawHeader.map(h =>
-    //     h.replace(/^"|"$/g, "").trim() // entfernt Anführungszeichen und Whitespace
-    //   );
-
-    //   // Verarbeite Datenzeilen
-    //   const data = rows.map(row => {
-    //     const obj = {};
-    //     row.forEach((val, i) => {
-    //       obj[header[i]] = val.replace(/^"|"$/g, "").trim(); // auch Werte bereinigen
-    //     });
-    //     return obj;
-    //   });
-
-    //   return data;
-    // }
 
     function parseTime(data){
         const [hh, mm, ss] = data.Time?.split(":").map(Number);
@@ -187,7 +180,7 @@
         case "downsample":
           return downsample(data, 20)
         case "smooth":
-          return movingAverage(movingAverage(data, field, 10),"uSv/h", 10);
+          return movingAverage(movingAverage(movingAverage(data, field, 10), "Alt", 10),"uSv/h", 10);
         default:
           return data;
       }
@@ -206,6 +199,32 @@
       }
       return result;
     }
+
+  function setRange(rangeKey) {
+    const now = new Date(parseTime(currentData[currentData.length - 1])); // letzter Zeitwert
+    let from;
+    const charts = ["cps-line", "usvh-line","altitude-line"];
+    switch (rangeKey) {
+      case "10m":
+        from = new Date(now.getTime() - 10 * 60 * 1000);
+        break;
+      case "30m":
+        from = new Date(now.getTime() - 30 * 60 * 1000);
+        break;
+      case "2h":
+        from = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+        break;
+      case "1d":
+        from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case "all":
+        charts.map((v) => Plotly.relayout(v, { "xaxis.autorange": true }))
+        return;
+    }
+    charts.map((v) => Plotly.relayout(v, {
+      "xaxis.range": [from.toISOString(), now.toISOString()]
+    }));
+  }
 
     function plotLineChart(data, field, title, elementId) {
       const times = parseTimeStrings(data);
@@ -228,11 +247,13 @@
         name: field,
       };
       const lastTime = new Date(parseTime(data[data.length - 1]));
-      const tenMinAgo = new Date(lastTime.getTime() - 30 * 60 * 1000); 
+      const tenMinAgo = new Date(lastTime.getTime() - 30 * 60 * 1000);
+      const isMobile = window.innerWidth < window.innerHeight;
+      const fontSize = isMobile ? 9 : 14;
       const layout = {
         title,
         xaxis: {
-          title: "time",
+          title: { text: "time", font: { size: fontSize }},
           type: "date",
           tickformat: "%H:%M:%S",
           rangeslider: { visible: false },
@@ -240,43 +261,43 @@
           showgrid: false,
         },
         yaxis: {
-          title: field,
+          title: { text: field, font: { size: fontSize }},
           showgrid: true,
           gridcolor: "#eee"
         },
-        margin: { t: 40, r: 10, b: 40, l: 50 },
+        // margin: { t: 40, r: 10, b: 40, l: 50 },
+        margin: { t: 30, b: 40, l: 45, r: 10 },
         plot_bgcolor: "#fff",
         paper_bgcolor: "#fff",
         hovermode: "closest",
+        autosize: true,
         font: {
           family: "system-ui, sans-serif",
-          size: 14,
+          size: fontSize,
           color: "#222"
         }
       };
-      // const layout = {
-      //   title,
-      //   margin: {t: 30},
-      //   xaxis: {
-      //     title: "time",
-      //     type: "date",
-      //     tickformat: "%H:%M:%S",
-      //     rangeslider: {visible: true},
-      //   },
-      //   yaxis: {title: field},
-      // };
       const config = {
         responsive: true,
+        scrollZoom: false, // kein 1-Finger-Zoom
+        displayModeBar: true,
         displaylogo: false,
+        doubleClick: "reset",
+        staticPlot: false,
         modeBarButtonsToRemove: [
+          // "zoom",
+          // "pan",
+          "select",
           "sendDataToCloud",
           "autoScale2d",
           "select2d",
           "lasso2d",
           "hoverCompareCartesian"
         ],
-        scrollZoom: true
+        // Touch-Fix:
+        dragmode: false
       };
+
       Plotly.newPlot(elementId, [trace], layout, config);
     }
     function parseCSVText(text) {
@@ -314,6 +335,7 @@
         if(isDownsampled){
           data = processData("downsample", data);
         }
+        currentData = data;
         return data;
       }
 
@@ -344,10 +366,7 @@
           const text = await file.text();
           parsedData = parseCSVText(text);
           const sampledData = parsedData;
-          // const sampledData = downsample(parsedData, 20);
           updatePlots(getDataWithFilters());
-
-          // showReloadButton(parsedData); // gleiche Button-Logik wie bei fetch()
         } catch (err) {
           console.error(err);
           alert(err);
@@ -389,25 +408,7 @@
       syncAxis(p2, p3);
       syncAxis(p3, p3);
     }
-    // function showReloadButton(data) {
-    //   const container = document.getElementById("reloadContainer");
-    //   container.innerHTML = ""; // Reset
 
-    //   const reloadBtn = document.createElement("button");
-    //   reloadBtn.textContent = "🔄 Neue Datei laden";
-    //   reloadBtn.style.marginTop = "10px";
-    //   reloadBtn.onclick = () => {
-    //     document.getElementById("fileInput").click();
-    //   };
-
-    //   const stats = document.createElement("div");
-    //   stats.style.fontSize = "0.9rem";
-    //   stats.style.marginTop = "6px";
-    //   stats.textContent = `Datensätze geladen: ${data.length}`;
-
-    //   container.appendChild(reloadBtn);
-    //   container.appendChild(stats);
-    // }
     main();
   </script>
   <script>
