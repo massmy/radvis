@@ -27,12 +27,12 @@
 <body>
   <h2>Radiation Visualizer</h2>
   <div style="margin: 1rem 0">
-  <label>CSV-Datei auswählen:
-    <input type="file" id="fileInput" accept=".csv" />
+  <label>load file:
+    <input type="file" id="fileInput" accept=".csv"/>
   </label>
 </div>
 <button id="installBtn" style="display: none; margin: 1rem 0;">
-  📲 App installieren
+  📲 install App
 </button>
 <div id="reloadContainer" style="margin: 1rem 0;">
 
@@ -44,11 +44,8 @@
     const installBtn = document.getElementById('installBtn');
 
     window.addEventListener('beforeinstallprompt', (e) => {
-      // Event blockieren & speichern
       e.preventDefault();
       deferredPrompt = e;
-
-      // Button sichtbar machen
       installBtn.style.display = 'inline-block';
 
       installBtn.addEventListener('click', async () => {
@@ -171,10 +168,10 @@
         plotLineChart(sampledData, "CPS", "Count Rate (CPS)", "cps-line");
         plotLineChart(sampledData, "uSv/h", "Dosisrate (µSv/h)", "usvh-line");
         linkPlots("cps-line", "usvh-line");
-        showReloadButton(parsedData); // gleiche Button-Logik wie bei fetch()
+        // showReloadButton(parsedData); // gleiche Button-Logik wie bei fetch()
       } catch (err) {
         console.error(err);
-        alert("Fehler beim Verarbeiten der hochgeladenen Datei.");
+        alert(err);
       }
     });
     }
@@ -201,25 +198,25 @@
       syncAxis(p1, p2);
       syncAxis(p2, p1);
     }
-    function showReloadButton(data) {
-      const container = document.getElementById("reloadContainer");
-      container.innerHTML = ""; // Reset
+    // function showReloadButton(data) {
+    //   const container = document.getElementById("reloadContainer");
+    //   container.innerHTML = ""; // Reset
 
-      const reloadBtn = document.createElement("button");
-      reloadBtn.textContent = "🔄 Neue Datei laden";
-      reloadBtn.style.marginTop = "10px";
-      reloadBtn.onclick = () => {
-        document.getElementById("fileInput").click();
-      };
+    //   const reloadBtn = document.createElement("button");
+    //   reloadBtn.textContent = "🔄 Neue Datei laden";
+    //   reloadBtn.style.marginTop = "10px";
+    //   reloadBtn.onclick = () => {
+    //     document.getElementById("fileInput").click();
+    //   };
 
-      const stats = document.createElement("div");
-      stats.style.fontSize = "0.9rem";
-      stats.style.marginTop = "6px";
-      stats.textContent = `Datensätze geladen: ${data.length}`;
+    //   const stats = document.createElement("div");
+    //   stats.style.fontSize = "0.9rem";
+    //   stats.style.marginTop = "6px";
+    //   stats.textContent = `Datensätze geladen: ${data.length}`;
 
-      container.appendChild(reloadBtn);
-      container.appendChild(stats);
-    }
+    //   container.appendChild(reloadBtn);
+    //   container.appendChild(stats);
+    // }
     main();
   </script>
   <script>
