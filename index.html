@@ -170,13 +170,36 @@
 
         plotLineChart(sampledData, "CPS", "Count Rate (CPS)", "cps-line");
         plotLineChart(sampledData, "uSv/h", "Dosisrate (µSv/h)", "usvh-line");
-
+        linkPlots("cps-line", "usvh-line");
         showReloadButton(parsedData); // gleiche Button-Logik wie bei fetch()
       } catch (err) {
         console.error(err);
         alert("Fehler beim Verarbeiten der hochgeladenen Datei.");
       }
     });
+    }
+    function linkPlots(plot1, plot2) {
+      let block = false;
+
+      function syncAxis(source, target) {
+        source.on('plotly_relayout', (eventData) => {
+          if (block) return;
+          block = true;
+
+          const xRange = {
+            'xaxis.range[0]': eventData['xaxis.range[0]'],
+            'xaxis.range[1]': eventData['xaxis.range[1]'],
+          };
+
+          Plotly.relayout(target, xRange).then(() => (block = false));
+        });
+      }
+
+      const p1 = document.getElementById(plot1);
+      const p2 = document.getElementById(plot2);
+
+      syncAxis(p1, p2);
+      syncAxis(p2, p1);
     }
     function showReloadButton(data) {
       const container = document.getElementById("reloadContainer");
