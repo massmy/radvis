@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Radiation Symbol</title>
+  <style>
+    canvas {
+      background: #fdfdfd;
+      display: block;
+      margin: 40px auto;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+<canvas id="radiationCanvas" width="400" height="400"></canvas>
+
+<script>
+  const canvas = document.getElementById('radiationCanvas');
+  const ctx = canvas.getContext('2d');
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const radius = 100;
+
+  function drawSector(angleStart, angleEnd, color) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, angleStart, angleEnd, false);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius + 20, 0, Math.PI * 2);
+  ctx.fillStyle = 'yellow';
+  ctx.fill();
+  ctx.closePath();
+
+  // Draw three black sectors (blades)
+  for (let i = 0; i < 3; i++) {
+    const angleStart = (i * 2 * Math.PI) / 3 + 0.5;
+    const angleEnd = ((i + 1) * 2 * Math.PI) / 3 - 0.5;
+    drawSector(angleStart, angleEnd, 'black');
+  }
+  ctx.beginPath();
+  ctx.arc(cx, cy, 30, 0, (Math.PI * 2));
+  ctx.fillStyle = 'yellow';
+  ctx.fill();
+
+  // Inner circle (black dot)
+  ctx.beginPath();
+  ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+  ctx.fillStyle = 'black';
+  ctx.fill();
+</script>
+</body>
+</html>

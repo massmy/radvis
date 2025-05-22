@@ -10,6 +10,7 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
   );
@@ -21,4 +22,8 @@ self.addEventListener('fetch', (event) => {
       response || fetch(event.request)
     )
   );
+});
+
+self.addEventListener("activate", (event) => {
+  clients.claim();
 });

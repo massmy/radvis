@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.png" type="image/png">
   <meta name="theme-color" content="#3399ff">
 
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Radiation Visualizer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- <meta name="viewport" content="width=device-width, initial-scale=1" /> -->
+  <title>RadVis</title>
   <!-- <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> -->
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
   <style>
@@ -16,29 +18,100 @@
       font-family: sans-serif;
       padding: 1rem;
     }
-    .chart {
+
+    /* .chart {
       width: 100%;
       max-width: 100%;
       height: 300px;
       margin-bottom: 2rem;
+    } */
+
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      padding: 1rem;
+      background: #f9f9f9;
+      color: #222;
+      max-width: 100%;
     }
+
+    #app {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    input[type="file"],
+    button {
+      font-size: 1rem;
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      border: none;
+      background: #3399ff;
+      color: white;
+      cursor: pointer;
+      margin-bottom: 1rem;
+    }
+
+    button:hover {
+      background: #2277cc;
+    }
+
+    .plot-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      input[type="file"],
+      button {
+        width: 100%;
+        box-sizing: border-box;
+      }
+    }
+    .disclaimer {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #444;
+      border-radius: 8px;
+      margin-top: 2rem;
+      max-width: 900px;
+    }
+    #controls{
+      margin: 1rem 0;
+    }
+
   </style>
 </head>
-<body>
-  <h2>Radiation Visualizer</h2>
-  <div style="margin: 1rem 0">
-  <label>load file:
-    <input type="file" id="fileInput" accept=".csv"/>
-  </label>
-</div>
-<button id="installBtn" style="display: none; margin: 1rem 0;">
-  📲 install App
-</button>
-<div id="reloadContainer" style="margin: 1rem 0;">
 
-</div>
-  <div id="cps-line" class="chart"></div>
-  <div id="usvh-line" class="chart"></div>
+<body>
+  <h2>☢️ RadVis</h2>
+  <div id="disclaimer" class="disclaimer">
+    <strong>Disclaimer:</strong> The data displayed by this application may be incomplete, inaccurate, or contain errors. It is provided for informational purposes only and should not be used as a basis for safety decisions or scientific conclusions.
+    <button onclick="this.parentElement.style.display='none'" style="margin-left: 1rem;">✖</button>
+  </div>
+
+  <button id="installBtn" style="display: none; margin: 1rem 0;">
+    📲 install App
+  </button>
+  <div id="controls">
+      <input type="file" id="fileInput" accept=".csv" />
+      <button id="toggleDownsample">🔁 Downsampling: On</button>
+      <button id="toggleSmoothing">🔁 Smoothing: On</button>
+  </div>
+  <!-- <div id="cps-line" class="chart"></div>
+  <div id="usvh-line" class="chart"></div> -->
+  <div class="plot-container">
+    <div id="cps-line"></div>
+  </div>
+  <div class="plot-container">
+    <div id="usvh-line"></div>
+  </div>
   <script>
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
@@ -52,7 +125,7 @@
         installBtn.style.display = 'none';
         deferredPrompt.prompt();
 
-        const { outcome } = await deferredPrompt.userChoice;
+        const {outcome} = await deferredPrompt.userChoice;
         console.log('User choice:', outcome);
 
         deferredPrompt = null;
@@ -87,17 +160,50 @@
     //   return data;
     // }
 
-    function parseTimeStrings(data) {
-      return data.map((d) => {
-        const [hh, mm, ss] = d.Time?.split(":").map(Number);
+    function parseTime(data){
+        const [hh, mm, ss] = data.Time?.split(":").map(Number);
         const date = new Date();
         date.setHours(hh, mm, ss, 0);
-        return date.toISOString();
+        return date;
+    }
+
+    function parseTimeStrings(data) {
+      return data.map((d) => {
+        return parseTime(d).toISOString();
       });
     }
+
     function downsample(data, step = 10) {
       return data.filter((_, index) => index % step === 0);
     }
+
+    function processData(mode, data, field = "CPS") {
+      switch (mode) {
+        // case "smart":
+        //   return downsampleLTTB(data, 1000);
+        case "downsample":
+          return downsample(data, 20)
+        case "smooth":
+          return movingAverage(movingAverage(data, field, 10),"uSv/h", 10);
+        default:
+          return data;
+      }
+    }
+
+    function movingAverage(data, field, windowSize = 5) {
+      const result = [];
+      for (let i = 0; i < data.length; i++) {
+        const start = Math.max(0, i - windowSize + 1);
+        const slice = data.slice(start, i + 1);
+        const avg = slice.reduce((sum, d) => sum + parseFloat(d[field]), 0) / slice.length;
+        result.push({
+          ...data[i],
+          [field]: avg.toString()
+        });
+      }
+      return result;
+    }
+
     function plotLineChart(data, field, title, elementId) {
       const times = parseTimeStrings(data);
       const values = data.map((d) => parseFloat(d[field]));
@@ -107,25 +213,68 @@
         y: values,
         // mode: "lines+markers",
         mode: 'lines',
-        type: "scatter",
-        line: { color: "#3399ff" },
-        marker: { size: 4 },
+        type: "scattergl",
+        line: {color: "#3399ff"},
+        fill: "tozeroy",
+        fillcolor: "rgba(51, 153, 255, 0.2)",
+        line: {
+          color: "rgba(51, 153, 255, 1)",
+          width: 2
+        },
+        marker: {size: 4},
         name: field,
       };
-
+      const lastTime = new Date(parseTime(data[data.length - 1]));
+      const tenMinAgo = new Date(lastTime.getTime() - 30 * 60 * 1000); 
       const layout = {
         title,
-        margin: { t: 30 },
         xaxis: {
           title: "time",
           type: "date",
           tickformat: "%H:%M:%S",
-          rangeslider: { visible: true },
+          rangeslider: { visible: false },
+          range: [tenMinAgo.toISOString(), lastTime.toISOString()],
+          showgrid: false,
         },
-        yaxis: { title: field },
+        yaxis: {
+          title: field,
+          showgrid: true,
+          gridcolor: "#eee"
+        },
+        margin: { t: 40, r: 10, b: 40, l: 50 },
+        plot_bgcolor: "#fff",
+        paper_bgcolor: "#fff",
+        hovermode: "closest",
+        font: {
+          family: "system-ui, sans-serif",
+          size: 14,
+          color: "#222"
+        }
       };
-
-      Plotly.newPlot(elementId, [trace], layout, { responsive: true });
+      // const layout = {
+      //   title,
+      //   margin: {t: 30},
+      //   xaxis: {
+      //     title: "time",
+      //     type: "date",
+      //     tickformat: "%H:%M:%S",
+      //     rangeslider: {visible: true},
+      //   },
+      //   yaxis: {title: field},
+      // };
+      const config = {
+        responsive: true,
+        displaylogo: false,
+        modeBarButtonsToRemove: [
+          "sendDataToCloud",
+          "autoScale2d",
+          "select2d",
+          "lasso2d",
+          "hoverCompareCartesian"
+        ],
+        scrollZoom: true
+      };
+      Plotly.newPlot(elementId, [trace], layout, config);
     }
     function parseCSVText(text) {
       const rows = text.trim().split("\n").map(row => row.split(","));
@@ -142,38 +291,71 @@
     }
 
     async function main() {
-      // const file = getFileParam();
-      // if (!file) {
-      //   alert("Kein CSV-Dateiname angegeben. Beispiel: ?file=data.csv");
-      //   return;
-      // }
-
-      // try {
-      //   const data = await loadCSV(file);
-      //   plotLineChart(data, "CPS", "Count Rate (CPS)", "cps-line");
-      //   plotLineChart(data, "uSv/h", "Dosisrate (µSv/h)", "usvh-line");
-      // } catch (err) {
-      //   console.error(err);
-      //   alert("Fehler beim Laden oder Verarbeiten der CSV-Datei.");
-      // }
-      document.getElementById("fileInput").addEventListener("change", async (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        const parsedData = parseCSVText(text);
-        const sampledData = parsedData; //downsample(parsedData, 2000);
-
-        plotLineChart(sampledData, "CPS", "Count Rate (CPS)", "cps-line");
-        plotLineChart(sampledData, "uSv/h", "Dose rate (µSv/h)", "usvh-line");
-        linkPlots("cps-line", "usvh-line");
-        // showReloadButton(parsedData); // gleiche Button-Logik wie bei fetch()
-      } catch (err) {
-        console.error(err);
-        alert(err);
+      let isDownsampled = false;
+      let isSmoothed = false;
+      let parsedData;
+      {
+        const btn = document.getElementById("toggleDownsample");
+        btn.textContent = `🔁 Downsampling: ${isDownsampled ? "ON" : "Off"}`;
       }
-    });
+      {
+        const btn = document.getElementById("toggleSmoothing");
+        btn.textContent = `🔁 Smoothing: ${isSmoothed ? "ON" : "Off"}`;
+      }
+
+      function getDataWithFilters(){
+        let data = parsedData;
+        if(isSmoothed){
+          data = processData("smooth", data);
+        }
+        if(isDownsampled){
+          data = processData("downsample", data);
+        }
+        return data;
+      }
+
+      document.getElementById("toggleDownsample").addEventListener("click", () => {
+        isDownsampled = !isDownsampled;
+
+        const btn = document.getElementById("toggleDownsample");
+        btn.textContent = `🔁 Downsampling: ${isDownsampled ? "ON" : "Off"}`;
+
+        updatePlots(getDataWithFilters());
+      });
+
+      document.getElementById("toggleSmoothing").addEventListener("click", () => {
+        isSmoothed = !isSmoothed;
+
+        const btn = document.getElementById("toggleSmoothing");
+        btn.textContent = `🔁 Smoothing: ${isSmoothed ? "ON" : "Off"}`;
+
+        updatePlots(getDataWithFilters());
+      });
+
+
+      document.getElementById("fileInput").addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          parsedData = parseCSVText(text);
+          const sampledData = parsedData;
+          // const sampledData = downsample(parsedData, 20);
+          updatePlots(getDataWithFilters());
+
+          // showReloadButton(parsedData); // gleiche Button-Logik wie bei fetch()
+        } catch (err) {
+          console.error(err);
+          alert(err);
+        }
+      });
+    }
+
+    function updatePlots(sampledData) {
+      plotLineChart(sampledData, "CPS", "Count Rate (CPS)", "cps-line");
+      plotLineChart(sampledData, "uSv/h", "Dose rate (µSv/h)", "usvh-line");
+      linkPlots("cps-line", "usvh-line");
     }
     function linkPlots(plot1, plot2) {
       let block = false;
@@ -227,4 +409,5 @@
     }
   </script>
 </body>
+
 </html>
