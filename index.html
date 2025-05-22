@@ -112,6 +112,9 @@
   <div class="plot-container">
     <div id="usvh-line"></div>
   </div>
+  <div class="plot-container">
+    <div id="altitude-line"></div>
+  </div>
   <script>
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
@@ -355,9 +358,10 @@
     function updatePlots(sampledData) {
       plotLineChart(sampledData, "CPS", "Count Rate (CPS)", "cps-line");
       plotLineChart(sampledData, "uSv/h", "Dose rate (µSv/h)", "usvh-line");
-      linkPlots("cps-line", "usvh-line");
+      plotLineChart(sampledData, "Alt", "Altitude", "altitude-line");
+      linkPlots("cps-line", "usvh-line", "altitude-line");
     }
-    function linkPlots(plot1, plot2) {
+    function linkPlots(plot1, plot2, plot3) {
       let block = false;
 
       function syncAxis(source, target) {
@@ -376,9 +380,14 @@
 
       const p1 = document.getElementById(plot1);
       const p2 = document.getElementById(plot2);
+      const p3 = document.getElementById(plot3);
 
       syncAxis(p1, p2);
       syncAxis(p2, p1);
+      syncAxis(p3, p1);
+      syncAxis(p1, p3);
+      syncAxis(p2, p3);
+      syncAxis(p3, p3);
     }
     // function showReloadButton(data) {
     //   const container = document.getElementById("reloadContainer");
