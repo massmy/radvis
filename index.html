@@ -117,7 +117,7 @@
         title,
         margin: { t: 30 },
         xaxis: {
-          title: "Uhrzeit",
+          title: "time",
           type: "date",
           tickformat: "%H:%M:%S",
           rangeslider: { visible: true },
@@ -166,7 +166,7 @@
         const sampledData = parsedData; //downsample(parsedData, 2000);
 
         plotLineChart(sampledData, "CPS", "Count Rate (CPS)", "cps-line");
-        plotLineChart(sampledData, "uSv/h", "Dosisrate (µSv/h)", "usvh-line");
+        plotLineChart(sampledData, "uSv/h", "Dose rate (µSv/h)", "usvh-line");
         linkPlots("cps-line", "usvh-line");
         // showReloadButton(parsedData); // gleiche Button-Logik wie bei fetch()
       } catch (err) {
