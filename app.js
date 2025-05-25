@@ -28,7 +28,7 @@ function parseTime(data) {
 
 function parseTimeStrings(data) {
     return data.map((d) => {
-    return parseTime(d).toISOString();
+        return parseTime(d).toISOString();
     });
 }
 
@@ -90,6 +90,7 @@ function setRange(rangeKey) {
     "xaxis.range": [from.toISOString(), now.toISOString()]
     }));
 }
+
 
 function aggregateByTimeWindowMax(data, windowMs = 10000) {
     if (data.length === 0) return [];
@@ -240,36 +241,40 @@ function setButton(container, id, name, callback) {
     container.append(btn);
     btn.addEventListener("click", callback);
 }
+const config = {
+    isDownsampled: false,
+    isSmoothed: false,
+    isBucketMax: true,
+    rangeKey: "30m"
+}
+function getDataWithFilters() {
+    let data = filterRangeAggregatedMax(config.rangeKey, parsedData);
+    if (config.isBucketMax) {
+        data = processData("bucketMax", data);
+    }
+    if (config.isSmoothed) {
+        data = processData("smooth", data);
+    }
+    if (config.isDownsampled) {
+        data = processData("downsample", data);
+    }
+    currentData = data;
+    return data;
+}
+
+const updateFilterAndPlots = () => updatePlots(getDataWithFilters());
 
 async function main() {
-    let isDownsampled = false;
-    let isSmoothed = false;
-    let isBucketMax = true;
-    let updateFilterAndPlots = () => updatePlots(getDataWithFilters());
     const buttons = document.getElementById('controls');
-    setToggleButton(buttons, "toggleDownsample", "Downsampling", () => isDownsampled, (value) => isDownsampled = value, updateFilterAndPlots);
-    setToggleButton(buttons, "toggleSmoothing", "Smoothing", () => isSmoothed, (value) => isSmoothed = value, updateFilterAndPlots);
-    setToggleButton(buttons, "toggleBucketMax", "BucketMax Algo", () => isBucketMax, (value) => isBucketMax = value, updateFilterAndPlots);
+    setToggleButton(buttons, "toggleDownsample", "Downsampling", () => config.isDownsampled, (value) => config.isDownsampled = value, updateFilterAndPlots);
+    setToggleButton(buttons, "toggleSmoothing", "Smoothing", () => config.isSmoothed, (value) => config.isSmoothed = value, updateFilterAndPlots);
+    setToggleButton(buttons, "toggleBucketMax", "BucketMax Algo", () => config.isBucketMax, (value) => config.isBucketMax = value, updateFilterAndPlots);
 
-    function getDataWithFilters() {
-        let data = parsedData;
-        if (isBucketMax) {
-            data = processData("bucketMax", data);
-        }
-        if (isSmoothed) {
-            data = processData("smooth", data);
-        }
-        if (isDownsampled) {
-            data = processData("downsample", data);
-        }
-        currentData = data;
-        return data;
-    }
     async function load(text){
         try {
             parsedData = parseCSVText(text);
             const sampledData = parsedData;
-            updatePlots(getDataWithFilters());
+            updateFilterAndPlots();
         } catch (err) {
             console.error(err);
             alert(err);
@@ -286,6 +291,25 @@ async function main() {
         if (!file) return;
         load(await file.text())
     });
+}
+function filterRangeAggregatedMax(rangeKey, data) {
+  const lastTime = new Date(parseTime(data[data.length - 1])); 
+  let from;
+  switch (rangeKey) {
+    case "10m": from = new Date(lastTime - 10 * 60 * 1000); break;
+    case "30m": from = new Date(lastTime - 30 * 60 * 1000); break;
+    case "2h":  from = new Date(lastTime - 2 * 60 * 60 * 1000); break;
+    case "1d":  from = new Date(lastTime - 24 * 60 * 60 * 1000); break;
+    case "all": return data;
+  }
+
+  const filtered = data.filter(d => { const time = parseTime(d); return time >= from && time <= lastTime });
+  return filtered;
+}
+
+function setRangeAggregatedMax(rangeKey) {
+    config.rangeKey = rangeKey;
+    updateFilterAndPlots();
 }
 
 function updatePlots(sampledData) {
