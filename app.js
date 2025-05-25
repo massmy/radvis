@@ -134,20 +134,20 @@ function plotLineChart(data, field, title, elementId) {
     const values = data.map((d) => parseFloat(d[field]));
 
     const trace = {
-    x: times,
-    y: values,
-    // mode: "lines+markers",
-    mode: 'lines',
-    type: "scattergl",
-    line: {color: "#3399ff"},
-    fill: "tozeroy",
-    fillcolor: "rgba(51, 153, 255, 0.2)",
-    line: {
-        color: "rgba(51, 153, 255, 1)",
-        width: 2
-    },
-    marker: {size: 4},
-    name: field,
+        x: times,
+        y: values,
+        // mode: "lines+markers",
+        mode: 'lines',
+        type: "scattergl",
+        line: {color: "#3399ff"},
+        fill: "tozeroy",
+        fillcolor: "rgba(51, 153, 255, 0.2)",
+        line: {
+            color: "rgba(51, 153, 255, 1)",
+            width: 2
+        },
+        marker: {size: 4},
+        name: field,
     };
     const lastTime = new Date(parseTime(data[data.length - 1]));
     const tenMinAgo = new Date(lastTime.getTime() - 30 * 60 * 1000);
@@ -181,24 +181,24 @@ function plotLineChart(data, field, title, elementId) {
     }
     };
     const config = {
-    responsive: true,
-    scrollZoom: false, // kein 1-Finger-Zoom
-    displayModeBar: true,
-    displaylogo: false,
-    doubleClick: "reset",
-    staticPlot: false,
-    modeBarButtonsToRemove: [
-        // "zoom",
-        // "pan",
-        "select",
-        "sendDataToCloud",
-        "autoScale2d",
-        "select2d",
-        "lasso2d",
-        "hoverCompareCartesian"
-    ],
-    // Touch-Fix:
-    dragmode: false
+        responsive: true,
+        scrollZoom: false, // kein 1-Finger-Zoom
+        displayModeBar: true,
+        displaylogo: false,
+        doubleClick: "reset",
+        staticPlot: false,
+        modeBarButtonsToRemove: [
+            // "zoom",
+            // "pan",
+            "select",
+            "sendDataToCloud",
+            "autoScale2d",
+            "select2d",
+            "lasso2d",
+            "hoverCompareCartesian"
+        ],
+        // Touch-Fix:
+        dragmode: false
     };
 
     Plotly.newPlot(elementId, [trace], layout, config);
