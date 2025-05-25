@@ -165,7 +165,7 @@
     });
 
     function parseTime(data) {
-      if(typeof data?.Time?.getMonth == 'function') return data.Time;
+      if (typeof data?.Time?.getMonth == 'function') return data.Time;
       const [hh, mm, ss] = (data.Time || data)?.split(":").map(Number);
       const date = new Date();
       date.setHours(hh, mm, ss, 0);
@@ -358,36 +358,38 @@
         row.forEach((val, i) => {
           obj[header[i]] = val.replace(/^"|"$/g, "").trim();
         });
-        if(obj !== undefined && obj["Time"]){
+        if (obj !== undefined && obj["Time"]) {
           obj["ParsedTime"] = parseTime(obj["Time"]);
         }
         return obj;
       }).filter(d => d["Time"]);
+    }
+    
+    function setButton(id, name, getValue, setValue, callback) {
+      const btn = document.getElementById(id);
+      let setText = (currentValue) => btn.textContent = `🔁 ${name}: ${currentValue ? "ON" : "Off"}`;
+      setText(getValue())
+      btn.addEventListener("click", () => {
+        const newValue = !getValue();
+        setValue(newValue)
+        setText(newValue);
+        callback();
+      });
     }
 
     async function main() {
       let isDownsampled = false;
       let isSmoothed = false;
       let isBucketMax = true;
-      function setButton(id, name, getValue, setValue){
-        const btn = document.getElementById(id);
-        let setText = (currentValue) => btn.textContent = `🔁 ${name}: ${currentValue ? "ON" : "Off"}`;
-        setText(getValue())
-        btn.addEventListener("click", () => {
-          const newValue = !getValue();
-          setValue(newValue)
-          setText(newValue);
-          updatePlots(getDataWithFilters());
-        });
-      }
+      let updateFilterAndPlots = () => updatePlots(getDataWithFilters());
 
-      setButton("toggleDownsample","Downsampling", ()=> isDownsampled, (value) => isDownsampled = value);
-      setButton("toggleSmoothing","Smoothing", ()=> isSmoothed, (value) => isSmoothed = value);
-      setButton("toggleBucketMax","BucketMax Algo", ()=> isBucketMax, (value) => isBucketMax = value);
+      setButton("toggleDownsample", "Downsampling", () => isDownsampled, (value) => isDownsampled = value, updateFilterAndPlots);
+      setButton("toggleSmoothing", "Smoothing", () => isSmoothed, (value) => isSmoothed = value, updateFilterAndPlots);
+      setButton("toggleBucketMax", "BucketMax Algo", () => isBucketMax, (value) => isBucketMax = value, updateFilterAndPlots);
 
       function getDataWithFilters() {
         let data = parsedData;
-        if(isBucketMax){
+        if (isBucketMax) {
           data = processData("bucketMax", data);
         }
         if (isSmoothed) {
