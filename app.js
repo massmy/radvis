@@ -261,7 +261,9 @@ function getDataWithFilters() {
     currentData = data;
     return data;
 }
-
+const autoRelayout = () => {
+    ["cps-line", "usvh-line", "altitude-line"].map((v) => Plotly.relayout(v, {"xaxis.autorange": true}));
+}
 const updateFilterAndPlots = () => updatePlots(getDataWithFilters());
 
 async function main() {
@@ -317,6 +319,7 @@ function updatePlots(sampledData) {
     plotLineChart(sampledData, "uSv/h", "Dose rate (µSv/h)", "usvh-line");
     plotLineChart(sampledData, "Alt", "Altitude", "altitude-line");
     linkPlots("cps-line", "usvh-line", "altitude-line");
+    autoRelayout();
 }
 function linkPlots(plot1, plot2, plot3) {
     let block = false;
