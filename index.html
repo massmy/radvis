@@ -73,6 +73,7 @@
         box-sizing: border-box;
       }
     }
+
     .disclaimer {
       background: #f9f9f9;
       border: 1px solid #ddd;
@@ -83,9 +84,11 @@
       margin-top: 2rem;
       max-width: 900px;
     }
-    #controls{
+
+    #controls {
       margin: 1rem 0;
     }
+
     #rangeButtons button {
       margin-right: 0.5rem;
       padding: 0.4rem 0.8rem;
@@ -96,6 +99,7 @@
       font-size: 0.9rem;
       cursor: pointer;
     }
+
     #rangeButtons button:hover {
       background: #0056b3;
     }
@@ -105,7 +109,9 @@
 <body>
   <h2>☢️ RadVis</h2>
   <div id="disclaimer" class="disclaimer">
-    <strong>Disclaimer:</strong> The data displayed by this application may be incomplete, inaccurate, or contain errors. It is provided for informational purposes only and should not be used as a basis for safety decisions or scientific conclusions.
+    <strong>Disclaimer:</strong> The data displayed by this application may be incomplete, inaccurate, or contain
+    errors. It is provided for informational purposes only and should not be used as a basis for safety decisions or
+    scientific conclusions.
     <button onclick="this.parentElement.style.display='none'" style="margin-left: 1rem;">✖</button>
   </div>
 
@@ -113,9 +119,10 @@
     📲 install App
   </button>
   <div id="controls">
-      <input type="file" id="fileInput" accept=".csv" />
-      <button id="toggleDownsample">🔁 Downsampling: On</button>
-      <button id="toggleSmoothing">🔁 Smoothing: On</button>
+    <input type="file" id="fileInput" accept=".csv" />
+    <button id="toggleDownsample">🔁 Downsampling: On</button>
+    <button id="toggleSmoothing">🔁 Smoothing: On</button>
+    <button id="toggleBucketMax">🔁 BucketMax Algo: On</button>
   </div>
   <div id="rangeButtons" style="margin-bottom: 1rem;">
     <button onclick="setRange('10m')">10 min</button>
@@ -136,6 +143,7 @@
     <div id="altitude-line"></div>
   </div>
   <script>
+    let parsedData;
     let currentData;
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
@@ -156,11 +164,12 @@
       });
     });
 
-    function parseTime(data){
-        const [hh, mm, ss] = data.Time?.split(":").map(Number);
-        const date = new Date();
-        date.setHours(hh, mm, ss, 0);
-        return date;
+    function parseTime(data) {
+      if(typeof data?.Time?.getMonth == 'function') return data.Time;
+      const [hh, mm, ss] = (data.Time || data)?.split(":").map(Number);
+      const date = new Date();
+      date.setHours(hh, mm, ss, 0);
+      return date;
     }
 
     function parseTimeStrings(data) {
@@ -180,7 +189,9 @@
         case "downsample":
           return downsample(data, 20)
         case "smooth":
-          return movingAverage(movingAverage(movingAverage(data, field, 10), "Alt", 10),"uSv/h", 10);
+          return movingAverage(movingAverage(movingAverage(data, field, 10), "Alt", 10), "uSv/h", 10);
+        case "bucketMax":
+          return aggregateByTimeWindowMax(data);
         default:
           return data;
       }
@@ -200,31 +211,68 @@
       return result;
     }
 
-  function setRange(rangeKey) {
-    const now = new Date(parseTime(currentData[currentData.length - 1])); // letzter Zeitwert
-    let from;
-    const charts = ["cps-line", "usvh-line","altitude-line"];
-    switch (rangeKey) {
-      case "10m":
-        from = new Date(now.getTime() - 10 * 60 * 1000);
-        break;
-      case "30m":
-        from = new Date(now.getTime() - 30 * 60 * 1000);
-        break;
-      case "2h":
-        from = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-        break;
-      case "1d":
-        from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case "all":
-        charts.map((v) => Plotly.relayout(v, { "xaxis.autorange": true }))
-        return;
+    function setRange(rangeKey) {
+      const now = new Date(parseTime(currentData[currentData.length - 1])); // letzter Zeitwert
+      let from;
+      const charts = ["cps-line", "usvh-line", "altitude-line"];
+      switch (rangeKey) {
+        case "10m":
+          from = new Date(now.getTime() - 10 * 60 * 1000);
+          break;
+        case "30m":
+          from = new Date(now.getTime() - 30 * 60 * 1000);
+          break;
+        case "2h":
+          from = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+          break;
+        case "1d":
+          from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case "all":
+          charts.map((v) => Plotly.relayout(v, {"xaxis.autorange": true}))
+          return;
+      }
+      charts.map((v) => Plotly.relayout(v, {
+        "xaxis.range": [from.toISOString(), now.toISOString()]
+      }));
     }
-    charts.map((v) => Plotly.relayout(v, {
-      "xaxis.range": [from.toISOString(), now.toISOString()]
-    }));
-  }
+
+    function aggregateByTimeWindowMax(data, windowMs = 10000) {
+      if (data.length === 0) return [];
+
+      const result = [];
+      let bucket = [];
+      let bucketStart = data[0].ParsedTime.getTime();
+
+      for (const d of data) {
+        const t = d.ParsedTime.getTime();
+        if (t < bucketStart + windowMs) {
+          bucket.push(d);
+        } else {
+          result.push(maxBucket(bucket, bucketStart));
+          bucket = [d];
+          bucketStart = t;
+        }
+      }
+
+      if (bucket.length > 0) {
+        result.push(maxBucket(bucket, bucketStart));
+      }
+
+      return result;
+    }
+
+    function maxBucket(bucket, startTime) {
+      const max = (arr, key) =>
+        Math.max(...arr.map(d => parseFloat(d[key])));
+
+      return {
+        Time: new Date(startTime + 5000), // Mitte des Buckets
+        CPS: max(bucket, "CPS"),
+        "uSv/h": max(bucket, "uSv/h"),
+        "Alt": max(bucket, "Alt")
+      };
+    }
 
     function plotLineChart(data, field, title, elementId) {
       const times = parseTimeStrings(data);
@@ -253,20 +301,20 @@
       const layout = {
         title,
         xaxis: {
-          title: { text: "time", font: { size: fontSize }},
+          title: {text: "time", font: {size: fontSize}},
           type: "date",
           tickformat: "%H:%M:%S",
-          rangeslider: { visible: false },
+          rangeslider: {visible: false},
           range: [tenMinAgo.toISOString(), lastTime.toISOString()],
           showgrid: false,
         },
         yaxis: {
-          title: { text: field, font: { size: fontSize }},
+          title: {text: field, font: {size: fontSize}},
           showgrid: true,
           gridcolor: "#eee"
         },
         // margin: { t: 40, r: 10, b: 40, l: 50 },
-        margin: { t: 30, b: 40, l: 45, r: 10 },
+        margin: {t: 30, b: 40, l: 45, r: 10},
         plot_bgcolor: "#fff",
         paper_bgcolor: "#fff",
         hovermode: "closest",
@@ -306,18 +354,32 @@
       const header = rawHeader.map(h => h.replace(/^"|"$/g, "").trim());
 
       return rows.map(row => {
-        const obj = {};
+        let obj = {};
         row.forEach((val, i) => {
           obj[header[i]] = val.replace(/^"|"$/g, "").trim();
         });
+        if(obj !== undefined && obj["Time"]){
+          obj["ParsedTime"] = parseTime(obj["Time"]);
+        }
         return obj;
       }).filter(d => d["Time"]);
     }
 
     async function main() {
-      let isDownsampled = true;
-      let isSmoothed = true;
-      let parsedData;
+      let isDownsampled = false;
+      let isSmoothed = false;
+      let isBucketMax = true;
+      function setButton(id, name, getValue, setValue){
+        const btn = document.getElementById(id);
+        let setText = (currentValue) => btn.textContent = `🔁 ${name}: ${currentValue ? "ON" : "Off"}`;
+        setText(getValue())
+        btn.addEventListener("click", () => {
+          const newValue = !getValue();
+          setValue(newValue)
+          setText();
+          updatePlots(getDataWithFilters());
+        });
+      }
       {
         const btn = document.getElementById("toggleDownsample");
         btn.textContent = `🔁 Downsampling: ${isDownsampled ? "ON" : "Off"}`;
@@ -327,12 +389,17 @@
         btn.textContent = `🔁 Smoothing: ${isSmoothed ? "ON" : "Off"}`;
       }
 
-      function getDataWithFilters(){
+      setButton("toggleBucketMax","BucketMax Algo", ()=> isBucketMax, (value) => isBucketMax = value);
+
+      function getDataWithFilters() {
         let data = parsedData;
-        if(isSmoothed){
+        if(isBucketMax){
+          data = processData("bucketMax", data);
+        }
+        if (isSmoothed) {
           data = processData("smooth", data);
         }
-        if(isDownsampled){
+        if (isDownsampled) {
           data = processData("downsample", data);
         }
         currentData = data;
@@ -357,6 +424,14 @@
         updatePlots(getDataWithFilters());
       });
 
+      document.getElementById("toggleSmoothing").addEventListener("click", () => {
+        isSmoothed = !isSmoothed;
+
+        const btn = document.getElementById("toggleSmoothing");
+        btn.textContent = `🔁 Smoothing: ${isSmoothed ? "ON" : "Off"}`;
+
+        updatePlots(getDataWithFilters());
+      });
 
       document.getElementById("fileInput").addEventListener("change", async (event) => {
         const file = event.target.files[0];
