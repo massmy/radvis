@@ -376,19 +376,13 @@
         btn.addEventListener("click", () => {
           const newValue = !getValue();
           setValue(newValue)
-          setText();
+          setText(newValue);
           updatePlots(getDataWithFilters());
         });
       }
-      {
-        const btn = document.getElementById("toggleDownsample");
-        btn.textContent = `🔁 Downsampling: ${isDownsampled ? "ON" : "Off"}`;
-      }
-      {
-        const btn = document.getElementById("toggleSmoothing");
-        btn.textContent = `🔁 Smoothing: ${isSmoothed ? "ON" : "Off"}`;
-      }
 
+      setButton("toggleDownsample","Downsampling", ()=> isDownsampled, (value) => isDownsampled = value);
+      setButton("toggleSmoothing","Smoothing", ()=> isSmoothed, (value) => isSmoothed = value);
       setButton("toggleBucketMax","BucketMax Algo", ()=> isBucketMax, (value) => isBucketMax = value);
 
       function getDataWithFilters() {
@@ -405,33 +399,6 @@
         currentData = data;
         return data;
       }
-
-      document.getElementById("toggleDownsample").addEventListener("click", () => {
-        isDownsampled = !isDownsampled;
-
-        const btn = document.getElementById("toggleDownsample");
-        btn.textContent = `🔁 Downsampling: ${isDownsampled ? "ON" : "Off"}`;
-
-        updatePlots(getDataWithFilters());
-      });
-
-      document.getElementById("toggleSmoothing").addEventListener("click", () => {
-        isSmoothed = !isSmoothed;
-
-        const btn = document.getElementById("toggleSmoothing");
-        btn.textContent = `🔁 Smoothing: ${isSmoothed ? "ON" : "Off"}`;
-
-        updatePlots(getDataWithFilters());
-      });
-
-      document.getElementById("toggleSmoothing").addEventListener("click", () => {
-        isSmoothed = !isSmoothed;
-
-        const btn = document.getElementById("toggleSmoothing");
-        btn.textContent = `🔁 Smoothing: ${isSmoothed ? "ON" : "Off"}`;
-
-        updatePlots(getDataWithFilters());
-      });
 
       document.getElementById("fileInput").addEventListener("change", async (event) => {
         const file = event.target.files[0];
