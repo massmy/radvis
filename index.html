@@ -12,98 +12,7 @@
   <title>RadVis</title>
   <!-- <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> -->
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-  <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      padding: 1rem;
-    }
-
-    /* .chart {
-      width: 100%;
-      max-width: 100%;
-      height: 300px;
-      margin-bottom: 2rem;
-    } */
-
-    body {
-      margin: 0;
-      font-family: system-ui, sans-serif;
-      padding: 1rem;
-      background: #f9f9f9;
-      color: #222;
-      max-width: 100%;
-    }
-
-    #app {
-      max-width: 900px;
-      margin: auto;
-    }
-
-    input[type="file"],
-    button {
-      font-size: 1rem;
-      padding: 0.6rem 1rem;
-      border-radius: 6px;
-      border: none;
-      background: #3399ff;
-      color: white;
-      cursor: pointer;
-      margin-bottom: 1rem;
-    }
-
-    button:hover {
-      background: #2277cc;
-    }
-
-    .plot-container {
-      width: 100%;
-      overflow-x: auto;
-      touch-action: auto !important;
-    }
-
-    @media (max-width: 600px) {
-      h1 {
-        font-size: 1.5rem;
-      }
-
-      input[type="file"],
-      button {
-        width: 100%;
-        box-sizing: border-box;
-      }
-    }
-
-    .disclaimer {
-      background: #f9f9f9;
-      border: 1px solid #ddd;
-      padding: 1rem;
-      font-size: 0.9rem;
-      color: #444;
-      border-radius: 8px;
-      margin-top: 2rem;
-      max-width: 900px;
-    }
-
-    #controls {
-      margin: 1rem 0;
-    }
-
-    #rangeButtons button {
-      margin-right: 0.5rem;
-      padding: 0.4rem 0.8rem;
-      border: none;
-      border-radius: 5px;
-      background: #007bff;
-      color: white;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-
-    #rangeButtons button:hover {
-      background: #0056b3;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
@@ -120,9 +29,6 @@
   </button>
   <div id="controls">
     <input type="file" id="fileInput" accept=".csv" />
-    <button id="toggleDownsample">🔁 Downsampling: On</button>
-    <button id="toggleSmoothing">🔁 Smoothing: On</button>
-    <button id="toggleBucketMax">🔁 BucketMax Algo: On</button>
   </div>
   <div id="rangeButtons" style="margin-bottom: 1rem;">
     <button onclick="setRange('10m')">10 min</button>
@@ -365,8 +271,9 @@
       }).filter(d => d["Time"]);
     }
     
-    function setButton(id, name, getValue, setValue, callback) {
-      const btn = document.getElementById(id);
+    function setButton(container, id, name, getValue, setValue, callback) {
+      const btn = document.createElement("button");
+      container.append(btn);
       let setText = (currentValue) => btn.textContent = `🔁 ${name}: ${currentValue ? "ON" : "Off"}`;
       setText(getValue())
       btn.addEventListener("click", () => {
@@ -382,10 +289,10 @@
       let isSmoothed = false;
       let isBucketMax = true;
       let updateFilterAndPlots = () => updatePlots(getDataWithFilters());
-
-      setButton("toggleDownsample", "Downsampling", () => isDownsampled, (value) => isDownsampled = value, updateFilterAndPlots);
-      setButton("toggleSmoothing", "Smoothing", () => isSmoothed, (value) => isSmoothed = value, updateFilterAndPlots);
-      setButton("toggleBucketMax", "BucketMax Algo", () => isBucketMax, (value) => isBucketMax = value, updateFilterAndPlots);
+      const buttons = document.getElementById('controls');
+      setButton(buttons, "toggleDownsample", "Downsampling", () => isDownsampled, (value) => isDownsampled = value, updateFilterAndPlots);
+      setButton(buttons, "toggleSmoothing", "Smoothing", () => isSmoothed, (value) => isSmoothed = value, updateFilterAndPlots);
+      setButton(buttons, "toggleBucketMax", "BucketMax Algo", () => isBucketMax, (value) => isBucketMax = value, updateFilterAndPlots);
 
       function getDataWithFilters() {
         let data = parsedData;
